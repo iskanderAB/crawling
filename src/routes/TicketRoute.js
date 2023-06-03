@@ -1,51 +1,42 @@
-const express = require('express')
+const express = require('express');
 const Ticket = require('../models/Ticket');
-const router = new express.Router()
+const router = new express.Router();
+const auth = require('../../middleware/auth');
 
-router.post('/tickets',async (req,res) =>{
-    const task = new Ticket({...req.body,owner:req.user._id})
+router.post('/tickets',auth ,async (req,res) =>{
+    const ticket = new Ticket({...req.body,owner:req.user._id})
     try{
-        await task.save()
-        res.status(201).send(task)
+        await ticket.save()
+        res.status(201).send(ticket)
     }catch(e){
         res.status(500).send(e.message)
     }
 })
-//pagination limit=10 skip=10
-//sort
-router.get('/tickets',async (req,res) => {
-    const match = {}
-    const sort = {}
-    if(req.query.isCompleted){
-        match.isCompleted = req.query.isCompleted === 'true'
-    }
-    if(req.query.sortBy){
-        const str = req.query.sortBy.split(':')
-        sort[str[0]] = str[1] === 'desc' ? -1:1
-    }
-    try {
-        // const Ticket = await Ticket.find({owner:req.user._id})
-        await req.user.populate({
-            path:'Ticket',
-            match,
-            options:{
-                limit:parseInt(req.query.limit),
-                skip:parseInt(req.query.skip),
-                sort
-            }
-        }).execPopulate();
-        res.status(200).send(req.user.Ticket)
-    }catch(e) {
-        res.status(400).send(e.message)
+
+router.get('/tickets',auth , async(req, res)=> {
+    let tickets ;
+    try{
+        const { roles, _id } = req.user;
+        if(roles.includes('role_admin')){
+            tickets = await Ticket.find();
+        }
+        else{
+            tickets = await Ticket.find({
+                owner: _id
+            })
+        }
+        res.status(200).send(tickets);
+    }catch(e){
+        res.status(400).send("error")
     }
 })
 
 router.get('/Ticket/:id',async (req,res) => {
     try {
-        const task = await Ticket.findByOne({_id:req.params.id,owner:req.user._id})
-        if (!task)
+        const ticket = await Ticket.findByOne({_id:req.params.id,owner:req.user._id})
+        if (!ticket)
            return  res.status(404).send()
-        res.status(200).send(task)
+        res.status(200).send(ticket)
     }catch(e){
         res.status(400).send()
     }
@@ -58,10 +49,10 @@ router.patch('/Ticket/:id',async (req,res) => {
     if(!isUpdationValid)
     res.status(400).send()
     try {
-        const task = await Ticket.findByOne({_id:req.params.id,owner:req.user._id})
-        if(!task)
+        const ticket = await Ticket.findByOne({_id:req.params.id,owner:req.user._id})
+        if(!ticket)
            return res.status(404).send()
-        res.status(200).send(task)
+        res.status(200).send(ticket)
     }catch(e){
         res.status(400).send()
     }
@@ -69,10 +60,10 @@ router.patch('/Ticket/:id',async (req,res) => {
 
 router.delete('/Ticket/:id',async (req,res) =>{
     try{
-        const task = await Ticket.findByOne({ _id: req.params.id, owner: req.user._id })
-        if (!task)
+        const ticket = await Ticket.findByOne({ _id: req.params.id, owner: req.user._id })
+        if (!ticket)
           return res.status(404).send()
-        res.status(200).send(task)
+        res.status(200).send(ticket)
 
     }catch(e){
         res.status(400).send()
